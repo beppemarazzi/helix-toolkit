@@ -4,6 +4,7 @@ using System.Linq;
 using System;
 using System.Collections.ObjectModel;
 using HelixToolkit.Mathematics;
+using Matrix = System.Numerics.Matrix4x4;
 #if NETFX_CORE
 using Windows.UI.Xaml;
 namespace HelixToolkit.UWP
@@ -71,11 +72,50 @@ namespace HelixToolkit.Wpf.SharpDX
             get { return (SamplerStateDescription)this.GetValue(DiffuseMapSamplerProperty); }
             set { this.SetValue(DiffuseMapSamplerProperty, value); }
         }
+        /// <summary>
+        /// The uv transform property
+        /// </summary>
+        public static readonly DependencyProperty UVTransformProperty =
+            DependencyProperty.Register("UVTransform", typeof(Matrix), typeof(DiffuseMaterial), new PropertyMetadata(Matrix.Identity, (d, e) =>
+            {
+                ((d as Material).Core as IPhongMaterial).UVTransform = (Matrix)e.NewValue;
+            }));
+        /// <summary>
+        /// Gets or sets the texture uv transform.
+        /// </summary>
+        /// <value>
+        /// The uv transform.
+        /// </value>
+        public Matrix UVTransform
+        {
+            get { return (Matrix)GetValue(UVTransformProperty); }
+            set { SetValue(UVTransformProperty, value); }
+        }
 
         protected override MaterialCore OnCreateCore()
         {
-            return new DiffuseMaterialCore();
+            return new DiffuseMaterialCore()
+            {
+                DiffuseColor = DiffuseColor,
+                DiffuseMap = DiffuseMap,
+                UVTransform = UVTransform,
+                DiffuseMapSampler = DiffuseMapSampler
+            };
         }
+
+#if !NETFX_CORE
+        protected override Freezable CreateInstanceCore()
+        {
+            return new DiffuseMaterial()
+            {
+                DiffuseColor = DiffuseColor,
+                DiffuseMap = DiffuseMap,
+                DiffuseMapSampler = DiffuseMapSampler,
+                UVTransform = UVTransform,
+                Name = Name
+            };
+        }
+#endif
     }
 
     public class DiffuseMaterialCollection : ObservableCollection<DiffuseMaterial>
@@ -86,6 +126,8 @@ namespace HelixToolkit.Wpf.SharpDX
             Add(DiffuseMaterials.BlackPlastic);
             Add(DiffuseMaterials.BlackRubber);
             Add(DiffuseMaterials.Blue);
+            Add(DiffuseMaterials.LightBlue);
+            Add(DiffuseMaterials.SkyBlue);
             Add(DiffuseMaterials.Brass);
             Add(DiffuseMaterials.Bronze);
             Add(DiffuseMaterials.Chrome);
@@ -95,6 +137,7 @@ namespace HelixToolkit.Wpf.SharpDX
             Add(DiffuseMaterials.Glass);
             Add(DiffuseMaterials.Gold);
             Add(DiffuseMaterials.Green);
+            Add(DiffuseMaterials.LightGreen);
             Add(DiffuseMaterials.Indigo);
             Add(DiffuseMaterials.Jade);
             Add(DiffuseMaterials.Gray);
@@ -210,7 +253,28 @@ namespace HelixToolkit.Wpf.SharpDX
                 };
             }
         }
-
+        public static DiffuseMaterial LightBlue
+        {
+            get
+            {
+                return new DiffuseMaterial
+                {
+                    Name = "LightBlue",
+                    DiffuseColor = Color.LightBlue,
+                };
+            }
+        }
+        public static DiffuseMaterial SkyBlue
+        {
+            get
+            {
+                return new DiffuseMaterial
+                {
+                    Name = "SkyBlue",
+                    DiffuseColor = Color.SkyBlue,
+                };
+            }
+        }
         public static DiffuseMaterial Green
         {
             get
@@ -222,7 +286,17 @@ namespace HelixToolkit.Wpf.SharpDX
                 };
             }
         }
-
+        public static DiffuseMaterial LightGreen
+        {
+            get
+            {
+                return new DiffuseMaterial
+                {
+                    Name = "LightGreen",
+                    DiffuseColor = Color.LightGreen,
+                };
+            }
+        }
         public static DiffuseMaterial Orange
         {
             get

@@ -78,6 +78,14 @@ namespace HelixToolkit.Wpf.SharpDX
             remove { this.RemoveHandler(WinformHostExtend.FormMouseMoveEvent, value); }
         }
         /// <summary>
+        /// Occurs when [form mouse wheel].
+        /// </summary>
+        public event WinformHostExtend.FormMouseWheelEventHandler FormMouseWheel
+        {
+            add { this.AddHandler(WinformHostExtend.FormMouseWheelEvent, value); }
+            remove { this.RemoveHandler(WinformHostExtend.FormMouseWheelEvent, value); }
+        }
+        /// <summary>
         /// The camera inertia factor property.
         /// </summary>
         public static readonly DependencyProperty CameraInertiaFactorProperty = DependencyProperty.Register(
@@ -104,7 +112,10 @@ namespace HelixToolkit.Wpf.SharpDX
             "Camera",
             typeof(Camera),
             typeof(Viewport3DX),
-            new PropertyMetadata(null, (s, e) => (s as Viewport3DX).CameraPropertyChanged(e.NewValue as Camera)));
+            new PropertyMetadata(null, (s, e) => 
+            {
+                (s as Viewport3DX).CameraPropertyChanged(e);
+            }));
 
         /// <summary>
         /// The camera rotation mode property
@@ -891,7 +902,7 @@ namespace HelixToolkit.Wpf.SharpDX
             "ManualLookAtPoint", typeof(Point3D), typeof(Viewport3DX), new FrameworkPropertyMetadata(new Point3D(), (d, e) => { },
                 (d, e) =>
                 {
-                    (d as Viewport3DX).LookAt(((Point3D)e).ToVector3());
+                    (d as Viewport3DX).LookAt((Point3D)e);
                     return e;
                 })
             { BindsTwoWayByDefault = false });
@@ -959,15 +970,7 @@ namespace HelixToolkit.Wpf.SharpDX
         /// </summary>
         public static readonly DependencyProperty EnableSwapChainRenderingProperty
             = DependencyProperty.Register("EnableSwapChainRendering", typeof(bool), typeof(Viewport3DX), new PropertyMetadata(false));
-        /// <summary>
-        /// The world matrix property
-        /// </summary>
-        public static readonly DependencyProperty WorldMatrixProperty
-            = DependencyProperty.Register("WorldMatrix", typeof(Matrix), typeof(Viewport3DX), new PropertyMetadata(Matrix.Identity,
-                (d, e) => {
-                    (d as Viewport3DX).worldMatrixInternal = (Matrix)e.NewValue;
-                    (d as Viewport3DX).InvalidateRender();
-                }));
+
         /// <summary>
         /// The content2 d property
         /// </summary>
@@ -1096,6 +1099,23 @@ namespace HelixToolkit.Wpf.SharpDX
         /// </summary>
         public static readonly DependencyProperty EnableDesignModeRenderingProperty =
             DependencyProperty.Register("EnableDesignModeRendering", typeof(bool), typeof(Viewport3DX), new PropertyMetadata(false));
+
+
+        /// <summary>
+        /// The enable render order property. <see cref="EnableRenderOrder"/>
+        /// </summary>
+        public static readonly DependencyProperty EnableRenderOrderProperty =
+            DependencyProperty.Register("EnableRenderOrder", typeof(bool), typeof(Viewport3DX), new PropertyMetadata(false,
+                (d,e)=>
+                {
+                    var viewport = d as Viewport3DX;
+                    if (viewport.renderHostInternal != null)
+                    {
+                        viewport.renderHostInternal.RenderConfiguration.EnableRenderOrder = (bool)e.NewValue;
+                        viewport.renderHostInternal.InvalidatePerFrameRenderables();
+                    }
+                }));
+
 
         /// <summary>
         /// Background Color
@@ -2709,24 +2729,6 @@ namespace HelixToolkit.Wpf.SharpDX
             }
         }
 
-        private Matrix worldMatrixInternal = Matrix.Identity;
-        /// <summary>
-        /// Gets or sets the world matrix.
-        /// </summary>
-        /// <value>
-        /// The world matrix.
-        /// </value>
-        public Matrix WorldMatrix
-        {
-            set
-            {
-                SetValue(WorldMatrixProperty, value);
-            }
-            get
-            {
-                return (Matrix)GetValue(WorldMatrixProperty);
-            }
-        }
         /// <summary>
         /// Gets or sets the content2d.
         /// </summary>
@@ -2878,6 +2880,20 @@ namespace HelixToolkit.Wpf.SharpDX
         {
             get { return (bool)GetValue(EnableDesignModeRenderingProperty); }
             set { SetValue(EnableDesignModeRenderingProperty, value); }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether [enable render order]. 
+        /// Specify render order in <see cref="Element3D.RenderOrder"/>. 
+        /// Scene node will be sorted by the <see cref="Element3D.RenderOrder"/> during rendering.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [enable manual render order]; otherwise, <c>false</c>.
+        /// </value>
+        public bool EnableRenderOrder
+        {
+            get { return (bool)GetValue(EnableRenderOrderProperty); }
+            set { SetValue(EnableRenderOrderProperty, value); }
         }
     }
 }

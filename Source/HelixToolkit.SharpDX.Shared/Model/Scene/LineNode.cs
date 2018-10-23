@@ -72,9 +72,10 @@ namespace HelixToolkit.Wpf.SharpDX.Model.Scene
         /// <param name="modelGuid"></param>
         /// <param name="geometry"></param>
         /// <returns></returns>
-        protected override IGeometryBufferProxy OnCreateBufferModel(Guid modelGuid, Geometry3D geometry)
+        protected override IAttachableBufferModel OnCreateBufferModel(Guid modelGuid, Geometry3D geometry)
         {
-            return EffectsManager.GeometryBufferManager.Register<DefaultLineGeometryBufferModel>(modelGuid, geometry);
+            return geometry != null && geometry.IsDynamic ? EffectsManager.GeometryBufferManager.Register<DynamicLineGeometryBufferModel>(modelGuid, geometry) 
+                : EffectsManager.GeometryBufferManager.Register<DefaultLineGeometryBufferModel>(modelGuid, geometry);
         }
 
         /// <summary>

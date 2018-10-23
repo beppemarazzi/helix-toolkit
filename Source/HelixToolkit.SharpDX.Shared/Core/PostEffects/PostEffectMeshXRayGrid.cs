@@ -17,12 +17,15 @@ namespace HelixToolkit.UWP.Core
     using Model.Scene;
     using Render;
     using Shaders;
+    using Components;
+
     public interface IPostEffectMeshXRayGrid : IPostEffect
     {
         Color4 Color { set; get; }
         int GridDensity { set; get; }
         float DimmingFactor { set; get; }
         float BlendingFactor { set; get; }
+        string XRayDrawingPassName { set; get; }
     }
     /// <summary>
     /// 
@@ -32,8 +35,10 @@ namespace HelixToolkit.UWP.Core
         #region Variables
         private readonly List<KeyValuePair<SceneNode, IEffectAttributes>> currentCores = new List<KeyValuePair<SceneNode, IEffectAttributes>>();
         private DepthPrepassCore depthPrepassCore;
+        private readonly ConstantBufferComponent modelCB;
         #endregion
         #region Properties
+        private string effectName = DefaultRenderTechniqueNames.PostEffectMeshXRayGrid; 
         /// <summary>
         /// Gets or sets the name of the effect.
         /// </summary>
@@ -42,8 +47,9 @@ namespace HelixToolkit.UWP.Core
         /// </value>
         public string EffectName
         {
-            set; get;
-        } = DefaultRenderTechniqueNames.PostEffectMeshXRayGrid;
+            set { SetAffectsCanRenderFlag(ref effectName, value); }
+            get { return effectName; }
+        }
 
         private Color4 color = Mathematics.Color.DarkBlue;
         /// <summary>
@@ -108,6 +114,16 @@ namespace HelixToolkit.UWP.Core
             }
             get { return blendingFactor; }
         }
+        /// <summary>
+        /// Gets or sets the name of the x ray drawing pass. This is the final pass to draw mesh and grid overlay onto render target
+        /// </summary>
+        /// <value>
+        /// The name of the x ray drawing pass.
+        /// </value>
+        public string XRayDrawingPassName
+        {
+            set; get;
+        } = DefaultPassNames.EffectMeshXRayGridP3;
         #endregion
 
         /// <summary>
@@ -115,23 +131,15 @@ namespace HelixToolkit.UWP.Core
         /// </summary>
         public PostEffectMeshXRayGridCore() : base(RenderType.PostProc)
         {
+            modelCB = AddComponent(new ConstantBufferComponent(new ConstantBufferDescription(DefaultBufferNames.BorderEffectCB, BorderEffectStruct.SizeInBytes)));
             Color = Mathematics.Color.Blue;
-        }
-
-        /// <summary>
-        /// Gets the model constant buffer description.
-        /// </summary>
-        /// <returns></returns>
-        protected override ConstantBufferDescription GetModelConstantBufferDescription()
-        {
-            return new ConstantBufferDescription(DefaultBufferNames.BorderEffectCB, BorderEffectStruct.SizeInBytes);
         }
 
         protected override bool OnAttach(IRenderTechnique technique)
         {
             depthPrepassCore = Collect(new DepthPrepassCore());
             depthPrepassCore.Attach(technique);
-            return base.OnAttach(technique);
+            return true;
         }
 
         protected override void OnDetach()
@@ -139,6 +147,11 @@ namespace HelixToolkit.UWP.Core
             depthPrepassCore.Detach();
             depthPrepassCore = null;
             base.OnDetach();
+        }
+
+        protected override bool OnUpdateCanRenderFlag()
+        {
+            return IsAttached && !string.IsNullOrEmpty(EffectName);
         }
         /// <summary>
         /// Called when [render].
@@ -158,7 +171,6 @@ namespace HelixToolkit.UWP.Core
                 depthPrepassCore.Render(context, deviceContext);
             }
             var frustum = context.BoundingFrustum;
-            context.IsCustomPass = true;
             //First pass, draw onto stencil buffer
             for (int i = 0; i < context.RenderHost.PerFrameNodesWithPostEffect.Count; ++i)
             {
@@ -175,7 +187,7 @@ namespace HelixToolkit.UWP.Core
                     if (pass.IsNULL) { continue; }
                     pass.BindShader(deviceContext);
                     pass.BindStates(deviceContext, StateType.BlendState | StateType.DepthStencilState);
-                    mesh.Render(context, deviceContext);
+                    mesh.RenderCustom(context, deviceContext);
                 }
             }
             //Second pass, remove not covered part from stencil buffer
@@ -187,10 +199,11 @@ namespace HelixToolkit.UWP.Core
                 if (pass.IsNULL) { continue; }
                 pass.BindShader(deviceContext);
                 pass.BindStates(deviceContext, StateType.BlendState | StateType.DepthStencilState);
-                mesh.Render(context, deviceContext);
+                mesh.RenderCustom(context, deviceContext);
             }
 
             deviceContext.ClearDepthStencilView(depthStencilBuffer, DepthStencilClearFlags.Depth, 1, 0);
+            modelCB.Upload(deviceContext, ref modelStruct);
             //Thrid pass, draw mesh with grid overlay
             for (int i = 0; i < currentCores.Count; ++i)
             {
@@ -203,21 +216,24 @@ namespace HelixToolkit.UWP.Core
                 if (modelStruct.Color != color)
                 {
                     modelStruct.Color = color;
-                    OnUploadPerModelConstantBuffers(deviceContext);
+                    modelCB.Upload(deviceContext, ref modelStruct);
                 }
-                context.CustomPassName = DefaultPassNames.EffectMeshXRayGridP3;
-                var pass = mesh.EffectTechnique[DefaultPassNames.EffectMeshXRayGridP3];
+                context.CustomPassName = XRayDrawingPassName;
+                var pass = mesh.EffectTechnique[XRayDrawingPassName];
                 if (pass.IsNULL) { continue; }
                 pass.BindShader(deviceContext);
                 pass.BindStates(deviceContext, StateType.BlendState | StateType.DepthStencilState);
-                mesh.Render(context, deviceContext);
+                if(mesh.RenderCore is IMaterialRenderParams material)
+                {
+                    material.MaterialVariables.BindMaterial(context, deviceContext, pass);
+                }
+                mesh.RenderCustom(context, deviceContext);
             }
             if (hasMSAA)
             {
                 deviceContext.ClearRenderTagetBindings();
                 buffer.FullResDepthStencilPool.Put(Format.D32_Float_S8X24_UInt, depthStencilBuffer);
             }
-            context.IsCustomPass = false;
             currentCores.Clear();
         }
 
@@ -239,6 +255,14 @@ namespace HelixToolkit.UWP.Core
             context.SetRenderTargets(dsv, targetView == null ? null : new RenderTargetView[] { targetView });
             context.SetViewport(0, 0, width, height);
             context.SetScissorRectangle(0, 0, width, height);
+        }
+
+        public sealed override void RenderShadow(RenderContext context, DeviceContextProxy deviceContext)
+        {
+        }
+
+        public sealed override void RenderCustom(RenderContext context, DeviceContextProxy deviceContext)
+        {
         }
     }
 }

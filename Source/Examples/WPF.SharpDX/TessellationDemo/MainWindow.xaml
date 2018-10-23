@@ -58,10 +58,7 @@
                 Material="{Binding DefaultMaterial}"
                 Transform="{Binding DefaultTransform}"
                 FillMode="{Binding FillMode}" ReuseVertexArrayBuffer="True"/>-->
-            <hx:MeshGeometryModel3D
-                Geometry="{Binding FloorModel}"
-                Material="{Binding FloorMaterial}"
-                RenderShadowMap="True" />
+            <hx:MeshGeometryModel3D Geometry="{Binding FloorModel}" Material="{Binding FloorMaterial}" />
         </hx:Viewport3DX>
 
         <StackPanel Grid.Row="1">
@@ -95,7 +92,7 @@
                         <RowDefinition />
                         <RowDefinition />
                     </Grid.RowDefinitions>
-                    <TextBlock
+                    <!--<TextBlock
                         Grid.Row="0"
                         Grid.Column="0"
                         Margin="3">
@@ -107,7 +104,7 @@
                         Margin="3"
                         ItemsSource="{Binding Source={StaticResource Topology}}"
                         SelectedItem="{Binding MeshTopology}"
-                        Text="" />
+                        Text="" />-->
 
                     <TextBlock
                         Grid.Row="2"
@@ -147,7 +144,7 @@
                         Grid.Row="8"
                         Grid.Column="1"
                         Margin="3"
-                        Text="{Binding DefaultMaterial.MinTessellationFactor}" />
+                        Text="{Binding DefaultMaterial.MinDistanceTessellationFactor}" />
                     <Slider
                         Grid.Row="9"
                         Grid.ColumnSpan="2"
@@ -156,7 +153,7 @@
                         Maximum="24"
                         Minimum="1"
                         TickFrequency="1"
-                        Value="{Binding DefaultMaterial.MinTessellationFactor}" />
+                        Value="{Binding DefaultMaterial.MinDistanceTessellationFactor}" />
 
                 </Grid>
             </Expander>

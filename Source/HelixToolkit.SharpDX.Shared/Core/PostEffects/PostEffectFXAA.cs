@@ -14,44 +14,50 @@ namespace HelixToolkit.UWP.Core
     using Render;
     using Shaders;
     using Utilities;
+    using Components;
 
     public sealed class PostEffectFXAA : RenderCoreBase<BorderEffectStruct>, IPostEffect
     {
-        public string EffectName { set; get; } = DefaultRenderTechniqueNames.PostEffectFXAA;
+        private string effectName = DefaultRenderTechniqueNames.PostEffectFXAA;
+        public string EffectName
+        {
+            set { SetAffectsCanRenderFlag(ref effectName, value); }
+            get { return effectName; }
+        }
 
+        private FXAALevel fxaaLevel = FXAALevel.None;
+        /// <summary>
+        /// Gets or sets the fxaa level.
+        /// </summary>
+        /// <value>
+        /// The fxaa level.
+        /// </value>
         public FXAALevel FXAALevel
         {
-            set; get;
-        } = FXAALevel.Medium;
+            set { SetAffectsCanRenderFlag(ref fxaaLevel, value); }
+            get { return fxaaLevel; }
+        }
 
         private int textureSlot;
         private int samplerSlot;
         private SamplerStateProxy sampler;
         private ShaderPass FXAAPass;
         private ShaderPass LUMAPass;
+        private readonly ConstantBufferComponent modelCB;
 
-        public PostEffectFXAA() : base(RenderType.PostProc) { }
-
-        protected override ConstantBufferDescription GetModelConstantBufferDescription()
+        public PostEffectFXAA() : base(RenderType.PostProc)
         {
-            return new ConstantBufferDescription(DefaultBufferNames.BorderEffectCB, BorderEffectStruct.SizeInBytes);
+            modelCB = AddComponent(new ConstantBufferComponent(new ConstantBufferDescription(DefaultBufferNames.BorderEffectCB, BorderEffectStruct.SizeInBytes)));
         }
 
         protected override bool OnAttach(IRenderTechnique technique)
         {
-            if (base.OnAttach(technique))
-            {
-                FXAAPass = technique[DefaultPassNames.FXAAPass];
-                LUMAPass = technique[DefaultPassNames.LumaPass];
-                textureSlot = FXAAPass.PixelShader.ShaderResourceViewMapping.TryGetBindSlot(DefaultBufferNames.DiffuseMapTB);
-                samplerSlot = FXAAPass.PixelShader.SamplerMapping.TryGetBindSlot(DefaultSamplerStateNames.DiffuseMapSampler);
-                sampler = Collect(technique.EffectsManager.StateManager.Register(DefaultSamplers.LinearSamplerClampAni1));
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            FXAAPass = technique[DefaultPassNames.FXAAPass];
+            LUMAPass = technique[DefaultPassNames.LumaPass];
+            textureSlot = FXAAPass.PixelShader.ShaderResourceViewMapping.TryGetBindSlot(DefaultBufferNames.DiffuseMapTB);
+            samplerSlot = FXAAPass.PixelShader.SamplerMapping.TryGetBindSlot(DefaultSamplerStateNames.DiffuseMapSampler);
+            sampler = Collect(technique.EffectsManager.StateManager.Register(DefaultSamplers.LinearSamplerClampAni1));
+            return true;
         }
 
         protected override void OnDetach()
@@ -60,9 +66,9 @@ namespace HelixToolkit.UWP.Core
             base.OnDetach();
         }
 
-        protected override bool CanRender(RenderContext context)
+        protected override bool OnUpdateCanRenderFlag()
         {
-            return base.CanRender(context) && FXAALevel != FXAALevel.None;
+            return IsAttached && !string.IsNullOrEmpty(EffectName) && FXAALevel != FXAALevel.None;
         }
 
         protected override void OnRender(RenderContext context, DeviceContextProxy deviceContext)
@@ -71,7 +77,7 @@ namespace HelixToolkit.UWP.Core
             deviceContext.SetRenderTargets(null, new RenderTargetView[] { buffer.FullResPPBuffer.NextRTV });
             deviceContext.SetViewport(0, 0, buffer.TargetWidth, buffer.TargetHeight, 0.0f, 1.0f);
             deviceContext.SetScissorRectangle(0, 0, buffer.TargetWidth, buffer.TargetHeight);
-
+            modelCB.Upload(deviceContext, ref modelStruct);
             LUMAPass.BindShader(deviceContext);
             LUMAPass.BindStates(deviceContext, StateType.BlendState | StateType.DepthStencilState | StateType.RasterState);
             LUMAPass.PixelShader.BindTexture(deviceContext, textureSlot, buffer.FullResPPBuffer.CurrentSRV);
@@ -112,6 +118,13 @@ namespace HelixToolkit.UWP.Core
                     model.Param.M13 = 0.0312f;
                     break;
             }
+        }
+        public sealed override void RenderShadow(RenderContext context, DeviceContextProxy deviceContext)
+        {
+        }
+
+        public sealed override void RenderCustom(RenderContext context, DeviceContextProxy deviceContext)
+        {
         }
     }
 }

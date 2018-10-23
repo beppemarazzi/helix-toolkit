@@ -176,22 +176,6 @@ namespace HelixToolkit.UWP.Core
             cubeTextureRes = null;
             base.OnDetach();
         }
-        /// <summary>
-        /// Gets the model constant buffer description.
-        /// </summary>
-        /// <returns></returns>
-        protected override ConstantBufferDescription GetModelConstantBufferDescription()
-        {
-            return null;
-        }
-        /// <summary>
-        /// Called when [upload per model constant buffers].
-        /// </summary>
-        /// <param name="context">The context.</param>
-        protected override void OnUploadPerModelConstantBuffers(DeviceContextProxy context)
-        {
-
-        }
 
         /// <summary>
         /// Called when [default pass changed].
@@ -203,10 +187,6 @@ namespace HelixToolkit.UWP.Core
             textureSamplerSlot = pass.PixelShader.SamplerMapping.TryGetBindSlot(ShaderCubeTextureSamplerName);
         }
 
-        protected override bool CanRender(RenderContext context)
-        {
-            return base.CanRender(context) && GeometryBuffer.VertexBuffer.Length > 0;
-        }
         /// <summary>
         /// Called when [render].
         /// </summary>
@@ -234,7 +214,12 @@ namespace HelixToolkit.UWP.Core
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="deviceContext">The device context.</param>
-        protected override void OnRenderShadow(RenderContext context, DeviceContextProxy deviceContext)
+        protected sealed override void OnRenderShadow(RenderContext context, DeviceContextProxy deviceContext)
+        {
+            
+        }
+
+        protected sealed override void OnRenderCustom(RenderContext context, DeviceContextProxy deviceContext)
         {
             
         }
@@ -258,9 +243,18 @@ namespace HelixToolkit.UWP.Core
                 Topology = PrimitiveTopology.TriangleList;
             }
 
-            protected override Vector3[] OnBuildVertexArray(PointGeometry3D geometry)
+            protected override void OnCreateVertexBuffer(DeviceContextProxy context, IElementsBufferProxy buffer, int bufferIndex, Geometry3D geometry, IDeviceResources deviceResources)
             {
-                return geometry.Positions.ToArray();
+                // -- set geometry if given
+                if (geometry != null && geometry.Positions != null && geometry.Positions.Count > 0)
+                {
+
+                    buffer.UploadDataToBuffer(context, geometry.Positions, geometry.Positions.Count);
+                }
+                else
+                {
+                    buffer.UploadDataToBuffer(context, emptyVerts, 0);
+                }
             }
         }
     }

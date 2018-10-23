@@ -16,6 +16,7 @@ namespace HelixToolkit.Wpf.SharpDX.Core
 namespace HelixToolkit.UWP.Core
 #endif
 {
+    using Components;
     using Render;
     /// <summary>
     /// 
@@ -48,6 +49,13 @@ namespace HelixToolkit.UWP.Core
             get { return renderType; }
         }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether this instance can be rendered. Update this flag using <see cref="UpdateCanRenderFlag"/>
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if this instance can render; otherwise, <c>false</c>.
+        /// </value>
+        internal bool CanRenderFlag;
         /// <summary>
         /// Indicate whether render host should call <see cref="Update(RenderContext, DeviceContextProxy)"/> before <see cref="Render(RenderContext, DeviceContextProxy)"/>
         /// <para><see cref="Update(RenderContext, DeviceContextProxy)"/> is used to run such as compute shader before rendering. </para>
@@ -93,7 +101,7 @@ namespace HelixToolkit.UWP.Core
         /// <summary>
         /// Model matrix
         /// </summary>
-        public Matrix ModelMatrix { set; get; } = Matrix.Identity;
+        public Matrix ModelMatrix = Matrix.Identity;
         /// <summary>
         /// 
         /// </summary>
@@ -102,12 +110,13 @@ namespace HelixToolkit.UWP.Core
         /// 
         /// </summary>
         public Device Device { get { return EffectTechnique?.Device; } }
+
         /// <summary>
         /// Is render core has been attached
         /// </summary>
         public bool IsAttached { private set; get; } = false;
         #endregion
-
+        private readonly List<CoreComponent> components = new List<CoreComponent>();
         /// <summary>
         /// Initializes a new instance of the <see cref="RenderCoreBase{TModelStruct}"/> class.
         /// </summary>
@@ -115,6 +124,13 @@ namespace HelixToolkit.UWP.Core
         public RenderCore(RenderType renderType)
         {
             RenderType = renderType;
+        }
+
+        protected T AddComponent<T>(T component) where T : CoreComponent
+        {
+            components.Add(component);
+            component.OnInvalidateRender += (s, e) => { InvalidateRenderer(); };
+            return component;
         }
         /// <summary>
         /// Call to attach the render core.
@@ -128,6 +144,14 @@ namespace HelixToolkit.UWP.Core
             }
             EffectTechnique = technique;
             IsAttached = OnAttach(technique);
+            if (IsAttached)
+            {
+                foreach (var comp in components)
+                {
+                    comp.Attach(technique);
+                }
+            }
+            UpdateCanRenderFlag();
         }
 
         /// <summary>
@@ -144,6 +168,11 @@ namespace HelixToolkit.UWP.Core
         {
             IsAttached = false;
             OnDetach();
+            foreach (var comp in components)
+            {
+                comp.Detach();
+            }
+            UpdateCanRenderFlag();
         }
         /// <summary>
         /// On detaching, default is to release all resources
@@ -158,7 +187,18 @@ namespace HelixToolkit.UWP.Core
         /// <param name="context"></param>
         /// <param name="deviceContext"></param>
         public abstract void Render(RenderContext context, DeviceContextProxy deviceContext);
-
+        /// <summary>
+        /// Renders the shadow pass. Used to generate shadow map.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="deviceContext">The device context.</param>
+        public abstract void RenderShadow(RenderContext context, DeviceContextProxy deviceContext);
+        /// <summary>
+        /// Renders the custom pass. Must apply render pass externally. Usually used during PostEffect rendering.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="deviceContext">The device context.</param>
+        public abstract void RenderCustom(RenderContext context, DeviceContextProxy deviceContext);
         /// <summary>
         /// Update routine. Only used to run update computation such as compute shader in particle system. 
         /// <para>Compute shader can be run at the beginning of any other <see cref="Render(RenderContext, DeviceContextProxy)"/> routine to avoid waiting.</para>
@@ -167,6 +207,27 @@ namespace HelixToolkit.UWP.Core
         /// <param name="deviceContext"></param>
         public virtual void Update(RenderContext context, DeviceContextProxy deviceContext) { }
 
+        /// <summary>
+        /// Updates the can render flag.
+        /// </summary>
+        public void UpdateCanRenderFlag()
+        {
+            bool flag = OnUpdateCanRenderFlag();
+            if(CanRenderFlag != flag)
+            {
+                CanRenderFlag = flag;
+                InvalidateRenderer();
+            }
+        }
+
+        /// <summary>
+        /// Called when [update can render flag].
+        /// </summary>
+        /// <returns></returns>
+        protected virtual bool OnUpdateCanRenderFlag()
+        {
+            return IsAttached;
+        }
         /// <summary>
         /// Resets the invalidate handler.
         /// </summary>
@@ -178,6 +239,7 @@ namespace HelixToolkit.UWP.Core
         /// <summary>
         /// Invalidates the renderer.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void InvalidateRenderer()
         {
             OnInvalidateRenderer?.Invoke(this, EventArgs.Empty);
@@ -191,6 +253,7 @@ namespace HelixToolkit.UWP.Core
         /// <param name="value"></param>
         /// <param name="propertyName"></param>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected bool SetAffectsRender<T>(ref T backingField, T value, [CallerMemberName] string propertyName = "")
         {
             if (EqualityComparer<T>.Default.Equals(backingField, value))
@@ -202,6 +265,41 @@ namespace HelixToolkit.UWP.Core
             this.RaisePropertyChanged(propertyName);
             InvalidateRenderer();
             return true;
+        }
+
+        /// <summary>
+        /// Sets the affects can render flag. This will also invalidate renderer.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="backingField">The backing field.</param>
+        /// <param name="value">The value.</param>
+        /// <param name="propertyName">Name of the property.</param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected bool SetAffectsCanRenderFlag<T>(ref T backingField, T value, [CallerMemberName] string propertyName = "")
+        {
+            if (EqualityComparer<T>.Default.Equals(backingField, value))
+            {
+                return false;
+            }
+
+            backingField = value;
+            this.RaisePropertyChanged(propertyName);
+            UpdateCanRenderFlag();
+            InvalidateRenderer();
+            return true;
+        }
+
+        protected override void OnDispose(bool disposeManagedResources)
+        {
+            if (disposeManagedResources)
+            {
+                foreach (var comp in components)
+                {
+                    comp.Dispose();
+                }
+            }
+            base.OnDispose(disposeManagedResources);
         }
     }
 }

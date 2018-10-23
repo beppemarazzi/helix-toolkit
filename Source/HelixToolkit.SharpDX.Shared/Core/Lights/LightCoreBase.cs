@@ -57,7 +57,7 @@ namespace HelixToolkit.UWP.Core
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="deviceContext">The device context.</param>
-        public override void Render(RenderContext context, DeviceContextProxy deviceContext)
+        public sealed override void Render(RenderContext context, DeviceContextProxy deviceContext)
         {
             if (CanRender(context.LightScene))
             {
@@ -92,7 +92,15 @@ namespace HelixToolkit.UWP.Core
         {
             lightScene.LightModels.Lights[idx].LightColor = Color;
             lightScene.LightModels.Lights[idx].LightType = (int)LightType;
-        }      
+        }
+
+        public sealed override void RenderShadow(RenderContext context, DeviceContextProxy deviceContext)
+        {
+        }
+
+        public sealed override void RenderCustom(RenderContext context, DeviceContextProxy deviceContext)
+        {
+        }
     }
     /// <summary>
     /// 

@@ -53,9 +53,9 @@ namespace HelixToolkit.Wpf.SharpDX
         /// The light camera property
         /// </summary>
         public static readonly DependencyProperty LightCameraProperty =
-                DependencyProperty.Register("LightCamera", typeof(ProjectionCamera), typeof(ShadowMap3D), new PropertyMetadata(null, (d, e) =>
+                DependencyProperty.Register("LightCamera", typeof(IProjectionCameraModel), typeof(ShadowMap3D), new PropertyMetadata(null, (d, e) =>
                 {
-                    ((d as Element3DCore).SceneNode as ShadowMapNode).LightCamera = (e.NewValue as ProjectionCamera).CameraInternal as ProjectionCameraCore;
+                    ((d as Element3DCore).SceneNode as ShadowMapNode).LightCamera = (e.NewValue as Camera).CameraInternal as ProjectionCameraCore;
                 }));
 
         /// <summary>
@@ -75,6 +75,27 @@ namespace HelixToolkit.Wpf.SharpDX
             {
                 ((d as Element3DCore).SceneNode as ShadowMapNode).Distance = (float)(double)e.NewValue;
             }));
+
+
+        /// <summary>
+        /// The far field distance property
+        /// </summary>
+        public static readonly DependencyProperty FarFieldDistanceProperty =
+            DependencyProperty.Register("FarFieldDistance", typeof(double), typeof(ShadowMap3D), new PropertyMetadata(500.0, (d, e) =>
+            {
+                ((d as Element3DCore).SceneNode as ShadowMapNode).FarField = (float)(double)e.NewValue;
+            }));
+
+
+        /// <summary>
+        /// The near field distance property
+        /// </summary>
+        public static readonly DependencyProperty NearFieldDistanceProperty =
+            DependencyProperty.Register("NearFieldDistance", typeof(double), typeof(ShadowMap3D), new PropertyMetadata(1.0, (d, e) =>
+            {
+                ((d as Element3DCore).SceneNode as ShadowMapNode).NearField = (float)(double)e.NewValue;
+            }));
+
 
         /// <summary>
         /// Gets or sets the distance for shadow caster.
@@ -127,12 +148,36 @@ namespace HelixToolkit.Wpf.SharpDX
             get { return (double)this.GetValue(IntensityProperty); }
             set { this.SetValue(IntensityProperty, value); }
         }
+
+        /// <summary>
+        /// Gets or sets the near field distance.
+        /// </summary>
+        /// <value>
+        /// The near field distance.
+        /// </value>
+        public double NearFieldDistance
+        {
+            get { return (double)GetValue(NearFieldDistanceProperty); }
+            set { SetValue(NearFieldDistanceProperty, value); }
+        }
+
+        /// <summary>
+        /// Gets or sets the far field distance.
+        /// </summary>
+        /// <value>
+        /// The far field distance.
+        /// </value>
+        public double FarFieldDistance
+        {
+            get { return (double)GetValue(FarFieldDistanceProperty); }
+            set { SetValue(FarFieldDistanceProperty, value); }
+        }
         /// <summary>
         /// Distance of the directional light from origin
         /// </summary>
-        public ProjectionCamera LightCamera
+        public IProjectionCameraModel LightCamera
         {
-            get { return (ProjectionCamera)this.GetValue(LightCameraProperty); }
+            get { return (IProjectionCameraModel)this.GetValue(LightCameraProperty); }
             set { this.SetValue(LightCameraProperty, value); }
         }
 
@@ -154,6 +199,8 @@ namespace HelixToolkit.Wpf.SharpDX
                 n.Resolution = new Size2((int)(Resolution.Width), (int)(Resolution.Height));
                 n.Distance = (float)Distance;
                 n.OrthoWidth = (float)OrthoWidth;
+                n.FarField = (float)FarFieldDistance;
+                n.NearField = (float)NearFieldDistance;
             }
             base.AssignDefaultValuesToSceneNode(core);
         }

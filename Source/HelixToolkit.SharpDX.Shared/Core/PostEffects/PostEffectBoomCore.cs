@@ -15,6 +15,7 @@ namespace HelixToolkit.UWP.Core
     using Shaders;
     using System;
     using Utilities;
+    using Components;
 
     public interface IPostEffectBloom : IPostEffect
     {
@@ -53,8 +54,11 @@ namespace HelixToolkit.UWP.Core
         private int samplerSlot;
       
         private int width, height;
+
+        private readonly ConstantBufferComponent modelCB;
         #endregion
-        #region Properties        
+        #region Properties   
+        private string effectName = DefaultRenderTechniqueNames.PostEffectBloom;
         /// <summary>
         /// Gets or sets the name of the effect.
         /// </summary>
@@ -63,8 +67,9 @@ namespace HelixToolkit.UWP.Core
         /// </value>
         public string EffectName
         {
-            set; get;
-        } = DefaultRenderTechniqueNames.PostEffectBloom;
+            set { SetAffectsCanRenderFlag(ref effectName, value); }
+            get { return effectName; }
+        }
 
         /// <summary>
         /// Gets or sets the color of the border.
@@ -155,6 +160,7 @@ namespace HelixToolkit.UWP.Core
         /// </summary>
         public PostEffectBloomCore() : base(RenderType.PostProc)
         {
+            modelCB = AddComponent(new ConstantBufferComponent(new ConstantBufferDescription(DefaultBufferNames.BorderEffectCB, BorderEffectStruct.SizeInBytes)));
             ThresholdColor = new Color4(0.8f, 0.8f, 0.8f, 0f);
             BloomExtractIntensity = 1f;
             BloomPassIntensity = 0.95f;
@@ -162,32 +168,20 @@ namespace HelixToolkit.UWP.Core
             BloomCombineSaturation = 0.7f;
         }
 
-        protected override ConstantBufferDescription GetModelConstantBufferDescription()
-        {
-            return new ConstantBufferDescription(DefaultBufferNames.BorderEffectCB, BorderEffectStruct.SizeInBytes);
-        }
-
         protected override bool OnAttach(IRenderTechnique technique)
         {
-            if (base.OnAttach(technique))
-            {
-                screenQuadPass = technique.GetPass(DefaultPassNames.ScreenQuad);
-                screenQuadCopy = technique.GetPass(DefaultPassNames.ScreenQuadCopy);
-                blurPassVertical = technique.GetPass(DefaultPassNames.EffectBlurVertical);
-                blurPassHorizontal = technique.GetPass(DefaultPassNames.EffectBlurHorizontal);
-                screenOutlinePass = technique.GetPass(DefaultPassNames.MeshOutline);
-                textureSlot = screenOutlinePass.PixelShader.ShaderResourceViewMapping.TryGetBindSlot(DefaultBufferNames.DiffuseMapTB);
-                samplerSlot = screenOutlinePass.PixelShader.SamplerMapping.TryGetBindSlot(DefaultSamplerStateNames.DiffuseMapSampler);
-                sampler = Collect(technique.EffectsManager.StateManager.Register(DefaultSamplers.LinearSamplerClampAni1));
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            screenQuadPass = technique.GetPass(DefaultPassNames.ScreenQuad);
+            screenQuadCopy = technique.GetPass(DefaultPassNames.ScreenQuadCopy);
+            blurPassVertical = technique.GetPass(DefaultPassNames.EffectBlurVertical);
+            blurPassHorizontal = technique.GetPass(DefaultPassNames.EffectBlurHorizontal);
+            screenOutlinePass = technique.GetPass(DefaultPassNames.MeshOutline);
+            textureSlot = screenOutlinePass.PixelShader.ShaderResourceViewMapping.TryGetBindSlot(DefaultBufferNames.DiffuseMapTB);
+            samplerSlot = screenOutlinePass.PixelShader.SamplerMapping.TryGetBindSlot(DefaultSamplerStateNames.DiffuseMapSampler);
+            sampler = Collect(technique.EffectsManager.StateManager.Register(DefaultSamplers.LinearSamplerClampAni1));
+            return true;
         }
 
-        protected override bool CanRender(RenderContext context)
+        protected override bool OnUpdateCanRenderFlag()
         {
             return IsAttached && !string.IsNullOrEmpty(EffectName);
         }
@@ -236,6 +230,7 @@ namespace HelixToolkit.UWP.Core
             }
             #endregion
             #region Do Bloom Pass
+            modelCB.Upload(deviceContext, ref modelStruct);
             //Extract bloom samples
             BindTarget(null, offScreenRenderTargets[0].NextRTV, deviceContext, offScreenRenderTargets[0].Width, offScreenRenderTargets[0].Height, false);
             screenQuadPass.PixelShader.BindTexture(deviceContext, textureSlot, offScreenRenderTargets[0].CurrentSRV);
@@ -300,6 +295,14 @@ namespace HelixToolkit.UWP.Core
         }
 
         protected override void OnUpdatePerModelStruct(ref BorderEffectStruct model, RenderContext context)
+        {
+        }
+
+        public sealed override void RenderShadow(RenderContext context, DeviceContextProxy deviceContext)
+        {
+        }
+
+        public sealed override void RenderCustom(RenderContext context, DeviceContextProxy deviceContext)
         {
         }
     }

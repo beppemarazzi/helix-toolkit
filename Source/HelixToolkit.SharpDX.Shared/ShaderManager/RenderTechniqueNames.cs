@@ -18,6 +18,8 @@ namespace HelixToolkit.UWP
         /// 
         /// </summary>
         public const string Blinn = "RenderBlinn";
+
+        public const string BlinnBatched = "RenderBlinnBatch";
         ///// <summary>
         ///// 
         ///// </summary>
@@ -73,10 +75,6 @@ namespace HelixToolkit.UWP
         /// <summary>
         /// 
         /// </summary>
-        public const string BoneSkinBlinn = "RenderBoneSkinBlinn";
-        /// <summary>
-        /// 
-        /// </summary>
         public const string ParticleStorm = "ParticleStorm";
         /// <summary>
         /// 
@@ -114,10 +112,18 @@ namespace HelixToolkit.UWP
         /// 
         /// </summary>
         public const string MeshOITQuad = "MeshOITQuad";
-
+        /// <summary>
+        /// The post effect fxaa
+        /// </summary>
         public const string PostEffectFXAA = "PostEffectFXAA";
-
+        /// <summary>
+        /// The post effect mesh x ray grid
+        /// </summary>
         public const string PostEffectMeshXRayGrid = "PostEffectMeshXRayGrid";
+        /// <summary>
+        /// The plane grid
+        /// </summary>
+        public const string PlaneGrid = "PlaneGrid";
 #if !NETFX_CORE
         /// <summary>
         /// 
@@ -138,6 +144,10 @@ namespace HelixToolkit.UWP
         /// 
         /// </summary>
         public const string Diffuse = "RenderDiffuse";
+        /// <summary>
+        /// The diffuse oit
+        /// </summary>
+        public const string DiffuseOIT = "RenderDiffuseOIT";
         /// <summary>
         /// 
         /// </summary>
@@ -196,6 +206,10 @@ namespace HelixToolkit.UWP
         /// 
         /// </summary>
         public const string MeshOutline = "RenderMeshOutline";
+        /// <summary>
+        /// The mesh bone skinned
+        /// </summary>
+        public const string PreComputeMeshBoneSkinned = "MeshBoneSkinned";
 
         /// <summary>
         /// 
@@ -232,6 +246,10 @@ namespace HelixToolkit.UWP
         /// 
         /// </summary>
         public const string EffectMeshXRayGridP3 = "EffectMeshXRayGridP3";
+        /// <summary>
+        /// The effect mesh diffuse x ray grid p3
+        /// </summary>
+        public const string EffectMeshDiffuseXRayGridP3 = "EffectMeshDiffueXRayGridP3";
         /// <summary>
         /// 
         /// </summary>
